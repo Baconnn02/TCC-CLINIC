@@ -160,12 +160,29 @@ export function LineAreaChart({
     color,
 }) {
     const width = 560;
-    const height = 200;
+    const height = 240;
     const padding = 24;
 
-    const values = data.map(
+    const chartData = Array.isArray(data)
+        ? data.filter(
+              (item) =>
+                  Number.isFinite(
+                      Number(item?.value)
+                  )
+          )
+        : [];
+
+    const values = chartData.map(
         (item) => item.value
     );
+
+    if (!chartData.length) {
+        return (
+            <div className="flex h-[200px] items-center justify-center text-sm text-[#a99d8f]">
+                No visit data available.
+            </div>
+        );
+    }
 
     const max = Math.max(
         ...values,
@@ -174,12 +191,12 @@ export function LineAreaChart({
 
     const ceiling = max * 1.15;
 
-    const points = data.map(
+    const points = chartData.map(
         (item, index) => {
             const x =
                 padding +
                 (index /
-                    (data.length - 1)) *
+                    Math.max(chartData.length - 1, 1)) *
                     (width -
                         padding * 2);
 
@@ -210,14 +227,17 @@ export function LineAreaChart({
         )
         .join(" ");
 
-    const areaPath = `${linePath} L${
-        points[points.length - 1]
-            .x
-    },${
-        height - padding
-    } L${points[0].x},${
-        height - padding
-    } Z`;
+    const areaPath =
+        points.length > 1
+            ? `${linePath} L${
+                  points[points.length - 1]
+                      .x
+              },${
+                  height - padding
+              } L${points[0].x},${
+                  height - padding
+              } Z`
+            : "";
 
     const gridLines = [
         0.25,
@@ -287,20 +307,24 @@ export function LineAreaChart({
                 }
             )}
 
-            <path
-                d={areaPath}
-                fill="url(#visitsFill)"
-                stroke="none"
-            />
+            {areaPath && (
+                <path
+                    d={areaPath}
+                    fill="url(#visitsFill)"
+                    stroke="none"
+                />
+            )}
 
-            <path
-                d={linePath}
-                fill="none"
-                stroke={color}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
+            {points.length > 1 && (
+                <path
+                    d={linePath}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            )}
 
             {points.map(
                 (point, index) => (

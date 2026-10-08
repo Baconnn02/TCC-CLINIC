@@ -42,9 +42,9 @@ const ACCENTS = {
 };
 
 const DONUT_COLORS = [
-    "#8a6f50",
-    "#a88b68",
-    "#c0a27e",
+    "#4911cc",
+    "#8a1ad4",
+    "#a87ec0",
     "#927a61",
     "#b9937e",
     "#d0bba0",
@@ -65,10 +65,10 @@ const QUICK_ACTIONS = [
         description: "Add a new student profile",
     },
     {
-        to: "/medical-records",
+        to: "/clinic-visits",
         icon: FileText,
-        title: "Medical records",
-        description: "Look up a student's health history",
+        title: "Clinic visit records",
+        description: "Review recorded visit details",
     },
     {
         to: "/reports",
@@ -552,19 +552,9 @@ function Dashboard() {
                 )}`
             );
 
-            const recordRequest = api.get(
-                `/medical-records?student_id=${encodeURIComponent(
-                    studentId
-                )}`
-            );
-
-            const [
-                visitResult,
-                recordResult,
-            ] = await Promise.allSettled([
+            const visitResult = await Promise.allSettled([
                 visitRequest,
-                recordRequest,
-            ]);
+            ]).then(([result]) => result);
 
             if (cancelled) {
                 return;
@@ -594,20 +584,32 @@ function Dashboard() {
                 return [];
             };
 
-            setStudentVisits(
-                getRows(visitResult)
-            );
+            const visits = getRows(visitResult);
 
+            setStudentVisits(visits);
             setStudentRecords(
-                getRows(recordResult)
+                visits
+                    .filter(
+                        (visit) =>
+                            visit.assessment ||
+                            visit.treatment ||
+                            visit.remarks ||
+                            visit.symptoms
+                    )
+                    .map((visit) => ({
+                        id: `visit-${visit.id}`,
+                        record_type: visit.reason || "Clinic visit",
+                        record_date:
+                            visit.visit_date || visit.created_at,
+                        diagnosis: visit.assessment,
+                        notes:
+                            visit.treatment ||
+                            visit.remarks ||
+                            visit.symptoms,
+                    }))
             );
 
-            if (
-                visitResult.status ===
-                    "rejected" ||
-                recordResult.status ===
-                    "rejected"
-            ) {
+            if (visitResult.status === "rejected") {
                 setStudentDetailsError(true);
             }
 
@@ -851,11 +853,13 @@ function Dashboard() {
             0
         ) || 1;
 
-    const male = Number(
-        dashboard?.student_gender_counts?.male || 0
+    const male = Math.max(
+        0,
+        Number(dashboard?.student_gender_counts?.male) || 0
     );
-    const female = Number(
-        dashboard?.student_gender_counts?.female || 0
+    const female = Math.max(
+        0,
+        Number(dashboard?.student_gender_counts?.female) || 0
     );
 
     const gender = [
@@ -1562,7 +1566,7 @@ function Dashboard() {
                                                 </p>
 
                                                 <p className="text-xs text-[#a99d8f]">
-                                                    Health information recorded for this student
+                                                    Health details recorded with clinic visits
                                                 </p>
                                             </div>
 
@@ -1675,12 +1679,24 @@ function Dashboard() {
                                         selectedStudent._type ===
                                             "student" && (
                                         <p className="mt-3 rounded-lg bg-[#fdeeea] px-3 py-2 text-xs text-red-700">
-                                            Some student history could not be loaded. Check that the clinic visit and medical record API routes are available.
+                                            This student's visit history could not be loaded. Please try again.
                                         </p>
                                     )}
 
                                     <Link
-                                        to="/students"
+                                        to={`/students?profile_type=${encodeURIComponent(
+                                            selectedStudent._type
+                                        )}&profile_code=${encodeURIComponent(
+                                            selectedStudent.student_id ||
+                                                selectedStudent.staff_id ||
+                                                selectedStudent.employee_id ||
+                                                selectedStudent.id
+                                        )}&search=${encodeURIComponent(
+                                            selectedStudent.student_id ||
+                                                selectedStudent.staff_id ||
+                                                selectedStudent.employee_id ||
+                                                selectedStudent.id
+                                        )}`}
                                         onClick={
                                             closeSearch
                                         }
@@ -2025,7 +2041,7 @@ function Dashboard() {
 
 
 
-            <main className="w-full p-6 lg:p-7">
+            <main className="flex w-full flex-col p-6 lg:p-7">
 
 
                 <div className="relative mb-6 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-[#f3ebdf] to-[#f2e9dc] px-7 py-7">
@@ -2125,6 +2141,7 @@ function Dashboard() {
 
                             {!isToday && (
                                 <button
+                                    type="button"
                                     onClick={() =>
                                         setSelectedDate(
                                             todayKey
@@ -2312,7 +2329,7 @@ function Dashboard() {
 
 
                 <div
-                    className={`mb-5 grid grid-cols-1 gap-5 xl:grid-cols-12 ${
+                    className={`order-3 grid grid-cols-1 gap-5 xl:grid-cols-12 ${
                         loading ? "" : "fade-in-up"
                     }`}
                     style={
@@ -2457,7 +2474,7 @@ function Dashboard() {
 
 
                 <section
-                    className={`mb-5 grid grid-cols-1 gap-5 xl:grid-cols-12 ${
+                    className={`order-1 mb-5 grid grid-cols-1 gap-5 xl:grid-cols-12 ${
                         loading ? "" : "fade-in-up"
                     }`}
                     style={
@@ -2467,7 +2484,7 @@ function Dashboard() {
                     }
                 >
 
-                    <div className="rounded-2xl border border-[#e8dfd4] bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-5">
+                    <div className="rounded-2xl border border-[#e8dfd4] bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-7">
 
                         <SectionHeader
                             icon={CalendarDays}
@@ -2480,7 +2497,7 @@ function Dashboard() {
                         />
 
                         {loading ? (
-                            <Skeleton className="h-[200px] w-full" />
+                            <Skeleton className="h-[240px] w-full" />
                         ) : (
                             <LineAreaChart
                                 data={
@@ -2491,7 +2508,7 @@ function Dashboard() {
                         )}
                     </div>
 
-                    <div className="rounded-2xl border border-[#e8dfd4] bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-4">
+                    <div className="rounded-2xl border border-[#e8dfd4] bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-3">
 
                         <SectionHeader
                             icon={PieIcon}
@@ -2566,7 +2583,7 @@ function Dashboard() {
                         )}
                     </div>
 
-                    <div className="rounded-2xl border border-[#e8dfd4] bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-3">
+                    <div className="rounded-2xl border border-[#e8dfd4] bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-2">
 
                         <SectionHeader
                             icon={Users}
@@ -2598,13 +2615,17 @@ function Dashboard() {
 
                                             <div
                                                 className="w-12 rounded-t-lg transition-all duration-500"
+                                                aria-label={`${item.label}: ${item.value} registered students`}
+                                                role="img"
                                                 style={{
-                                                    height: `${Math.max(
-                                                        height,
-                                                        item.value
-                                                            ? 15
-                                                            : 5
-                                                    )}px`,
+                                                    height: `${
+                                                        item.value > 0
+                                                            ? Math.max(
+                                                                  height,
+                                                                  15
+                                                              )
+                                                            : 0
+                                                    }px`,
                                                     backgroundColor:
                                                         item.color,
                                                 }}
@@ -2650,7 +2671,7 @@ function Dashboard() {
 
 
                 <div
-                    className={`grid grid-cols-1 gap-5 xl:grid-cols-12 ${
+                    className={`order-2 mb-5 grid grid-cols-1 gap-5 xl:grid-cols-12 ${
                         loading ? "" : "fade-in-up"
                     }`}
                     style={
